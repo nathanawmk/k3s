@@ -2,24 +2,25 @@ resource "aws_instance" "worker" {
   depends_on = [
     var.dependency
   ]
-  ami                    = var.aws_ami
-  instance_type          = var.ec2_instance_class
-  count                  = var.no_of_worker_nodes
+  ami           = var.aws_ami
+  instance_type = var.ec2_instance_class
+  count         = var.no_of_worker_nodes
   connection {
-    type                 = "ssh"
-    user                 = var.aws_user
-    host                 = self.public_ip
-    private_key          = file(var.access_key)
+    type        = "ssh"
+    user        = var.aws_user
+    host        = self.public_ip
+    private_key = file(var.access_key)
   }
   subnet_id              = var.subnets
   availability_zone      = var.availability_zone
   vpc_security_group_ids = [var.sg_id]
   key_name               = var.key_name
   tags = {
-    Name                 = "${var.resource_name}-worker"
+    Name      = "${var.resource_name}-worker"
+    yor_trace = "fe5a2d62-04a4-40b0-b387-2cc30a64044c"
   }
   provisioner "file" {
-    source = "join_k3s_agent.sh"
+    source      = "join_k3s_agent.sh"
     destination = "/tmp/join_k3s_agent.sh"
   }
   provisioner "remote-exec" {
@@ -32,7 +33,7 @@ resource "aws_instance" "worker" {
 
 data "local_file" "master_ip" {
   depends_on = [var.dependency]
-  filename = "/tmp/${var.resource_name}_master_ip"
+  filename   = "/tmp/${var.resource_name}_master_ip"
 }
 
 locals {
@@ -41,7 +42,7 @@ locals {
 
 data "local_file" "token" {
   depends_on = [var.dependency]
-  filename = "/tmp/${var.resource_name}_nodetoken"
+  filename   = "/tmp/${var.resource_name}_nodetoken"
 }
 
 locals {
