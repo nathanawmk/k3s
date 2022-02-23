@@ -1,69 +1,75 @@
 resource "aws_db_instance" "db" {
-  count                  = (var.cluster_type == "etcd" ? 0 : (var.external_db != "aurora-mysql" ? 1 : 0))
-  identifier             = "${var.resource_name}-db"
-  allocated_storage      = 20
-  storage_type           = "gp2"
-  engine                 = var.external_db
-  engine_version         = var.external_db_version
-  instance_class         = var.instance_class
-  name                   = "mydb"
-  parameter_group_name   = var.db_group_name
-  username               = var.db_username
-  password               = var.db_password
-  availability_zone      = var.availability_zone
+  count                = (var.cluster_type == "etcd" ? 0 : (var.external_db != "aurora-mysql" ? 1 : 0))
+  identifier           = "${var.resource_name}-db"
+  allocated_storage    = 20
+  storage_type         = "gp2"
+  engine               = var.external_db
+  engine_version       = var.external_db_version
+  instance_class       = var.instance_class
+  name                 = "mydb"
+  parameter_group_name = var.db_group_name
+  username             = var.db_username
+  password             = var.db_password
+  availability_zone    = var.availability_zone
   tags = {
     Environment = var.environment
+    yor_trace   = "71ff3c0f-7a4d-45ea-8743-69bcce966d97"
   }
-  skip_final_snapshot    = true
+  skip_final_snapshot = true
 }
 
 resource "aws_rds_cluster" "db" {
-  count                  = (var.external_db == "aurora-mysql" ? 1 : 0)
-  cluster_identifier     = "${var.resource_name}-db"
-  engine                 = var.external_db
-  engine_version         = var.external_db_version
-  availability_zones     = [var.availability_zone]
-  database_name          = "mydb"
-  master_username        = var.db_username
-  master_password        = var.db_password
-  engine_mode            = var.engine_mode
+  count              = (var.external_db == "aurora-mysql" ? 1 : 0)
+  cluster_identifier = "${var.resource_name}-db"
+  engine             = var.external_db
+  engine_version     = var.external_db_version
+  availability_zones = [var.availability_zone]
+  database_name      = "mydb"
+  master_username    = var.db_username
+  master_password    = var.db_password
+  engine_mode        = var.engine_mode
   tags = {
-    Environment          = var.environment
+    Environment = var.environment
+    yor_trace   = "7c85e14b-9ea1-4583-981c-c3bbf5cd7008"
   }
-  skip_final_snapshot    = true
+  skip_final_snapshot = true
 }
 
 resource "aws_rds_cluster_instance" "db" {
- count                   = (var.external_db == "aurora-mysql" ? 1 : 0)
- cluster_identifier      = "${aws_rds_cluster.db[0].id}"
- identifier              = "${var.resource_name}-instance1"
- instance_class          = var.instance_class
-  engine                 = aws_rds_cluster.db[0].engine
-  engine_version         = aws_rds_cluster.db[0].engine_version
+  count              = (var.external_db == "aurora-mysql" ? 1 : 0)
+  cluster_identifier = "${aws_rds_cluster.db[0].id}"
+  identifier         = "${var.resource_name}-instance1"
+  instance_class     = var.instance_class
+  engine             = aws_rds_cluster.db[0].engine
+  engine_version     = aws_rds_cluster.db[0].engine_version
+  tags = {
+    yor_trace = "c25071b0-3297-4fac-b648-c1934005e10d"
+  }
 }
 
 resource "aws_instance" "master" {
-  ami                    = var.aws_ami
-  instance_type          = var.ec2_instance_class
+  ami           = var.aws_ami
+  instance_type = var.ec2_instance_class
   connection {
-    type                 = "ssh"
-    user                 = var.aws_user
-    host                 = self.public_ip
-    private_key          = file(var.access_key)
+    type        = "ssh"
+    user        = var.aws_user
+    host        = self.public_ip
+    private_key = file(var.access_key)
   }
   root_block_device {
-    volume_size          = "20"
-    volume_type          = "standard"
+    volume_size = "20"
+    volume_type = "standard"
   }
   subnet_id              = var.subnets
   availability_zone      = var.availability_zone
   vpc_security_group_ids = [var.sg_id]
   key_name               = var.key_name
   tags = {
-    Name                 = "${var.resource_name}-server"
+    Name      = "${var.resource_name}-server"
+    yor_trace = "44b16682-a8a9-4769-9a49-b4276e9c0f20"
   }
   provisioner "file" {
-    source = "install_k3s_master.sh"
+    source      = "install_k3s_master.sh"
     destination = "/tmp/install_k3s_master.sh"
   }
   provisioner "remote-exec" {
@@ -96,12 +102,12 @@ resource "aws_instance" "master" {
 }
 
 data "template_file" "test" {
-  template   = (var.cluster_type == "etcd" ? "NULL": (var.external_db == "postgres" ? "postgres://${aws_db_instance.db[0].username}:${aws_db_instance.db[0].password}@${aws_db_instance.db[0].endpoint}/${aws_db_instance.db[0].name}" : (var.external_db == "aurora-mysql" ? "mysql://${aws_rds_cluster.db[0].master_username}:${aws_rds_cluster.db[0].master_password}@tcp(${aws_rds_cluster.db[0].endpoint})/${aws_rds_cluster.db[0].database_name}" : "mysql://${aws_db_instance.db[0].username}:${aws_db_instance.db[0].password}@tcp(${aws_db_instance.db[0].endpoint})/${aws_db_instance.db[0].name}")))
+  template   = (var.cluster_type == "etcd" ? "NULL" : (var.external_db == "postgres" ? "postgres://${aws_db_instance.db[0].username}:${aws_db_instance.db[0].password}@${aws_db_instance.db[0].endpoint}/${aws_db_instance.db[0].name}" : (var.external_db == "aurora-mysql" ? "mysql://${aws_rds_cluster.db[0].master_username}:${aws_rds_cluster.db[0].master_password}@tcp(${aws_rds_cluster.db[0].endpoint})/${aws_rds_cluster.db[0].database_name}" : "mysql://${aws_db_instance.db[0].username}:${aws_db_instance.db[0].password}@tcp(${aws_db_instance.db[0].endpoint})/${aws_db_instance.db[0].name}")))
   depends_on = [data.template_file.test_status]
 }
 
 data "template_file" "test_status" {
-  template = (var.cluster_type == "etcd" ? "NULL": ((var.external_db == "postgres" ? aws_db_instance.db[0].endpoint : (var.external_db == "aurora-mysql" ? aws_rds_cluster_instance.db[0].endpoint : aws_db_instance.db[0].endpoint))))
+  template = (var.cluster_type == "etcd" ? "NULL" : ((var.external_db == "postgres" ? aws_db_instance.db[0].endpoint : (var.external_db == "aurora-mysql" ? aws_rds_cluster_instance.db[0].endpoint : aws_db_instance.db[0].endpoint))))
 }
 
 data "local_file" "token" {
@@ -114,18 +120,18 @@ locals {
 }
 
 resource "aws_instance" "master2-ha" {
-  ami                    = var.aws_ami
-  instance_type          = var.ec2_instance_class
-  count                  = var.no_of_server_nodes
+  ami           = var.aws_ami
+  instance_type = var.ec2_instance_class
+  count         = var.no_of_server_nodes
   connection {
-    type                 = "ssh"
-    user                 = var.aws_user
-    host                 = self.public_ip
-    private_key          = file(var.access_key)
+    type        = "ssh"
+    user        = var.aws_user
+    host        = self.public_ip
+    private_key = file(var.access_key)
   }
   root_block_device {
-    volume_size          = "20"
-    volume_type          = "standard"
+    volume_size = "20"
+    volume_type = "standard"
   }
   subnet_id              = var.subnets
   availability_zone      = var.availability_zone
@@ -133,11 +139,12 @@ resource "aws_instance" "master2-ha" {
   key_name               = var.key_name
   depends_on             = [aws_instance.master]
   tags = {
-    Name                 = "${var.resource_name}-servers"
+    Name      = "${var.resource_name}-servers"
+    yor_trace = "cdcd046c-1bbb-4930-aa7a-634489ef42a8"
   }
   provisioner "file" {
-    source               = "join_k3s_master.sh"
-    destination          = "/tmp/join_k3s_master.sh"
+    source      = "join_k3s_master.sh"
+    destination = "/tmp/join_k3s_master.sh"
   }
   provisioner "remote-exec" {
     inline = [
@@ -148,102 +155,114 @@ resource "aws_instance" "master2-ha" {
 }
 
 resource "aws_lb_target_group" "aws_tg_80" {
-  port               = 80
-  protocol           = "TCP"
-  vpc_id             = "${var.vpc_id}"
-  name               = "${var.resource_name}-tg-80"
+  port     = 80
+  protocol = "TCP"
+  vpc_id   = "${var.vpc_id}"
+  name     = "${var.resource_name}-tg-80"
   health_check {
-        protocol            = "HTTP"
-        port                = "traffic-port"
-        path                = "/ping"
-        interval            = 10
-        timeout             = 6
-        healthy_threshold   = 3
-        unhealthy_threshold = 3
-        matcher             = "200-399"
+    protocol            = "HTTP"
+    port                = "traffic-port"
+    path                = "/ping"
+    interval            = 10
+    timeout             = 6
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+    matcher             = "200-399"
+  }
+  tags = {
+    yor_trace = "3608044d-d6a6-4ff0-95a8-4aeb9278d85c"
   }
 }
 
 resource "aws_lb_target_group_attachment" "aws_tg_attachment_80" {
-  target_group_arn   = "${aws_lb_target_group.aws_tg_80.arn}"
-  target_id          = "${aws_instance.master.id}"
-  port               = 80
-  depends_on         = ["aws_instance.master"]
+  target_group_arn = "${aws_lb_target_group.aws_tg_80.arn}"
+  target_id        = "${aws_instance.master.id}"
+  port             = 80
+  depends_on       = ["aws_instance.master"]
 }
 
 resource "aws_lb_target_group_attachment" "aws_tg_attachment_80_2" {
-  target_group_arn   = "${aws_lb_target_group.aws_tg_80.arn}"
-  count              = length(aws_instance.master2-ha)
-  target_id          = "${aws_instance.master2-ha[count.index].id}"
-  port               = 80
-  depends_on         = ["aws_instance.master"]
+  target_group_arn = "${aws_lb_target_group.aws_tg_80.arn}"
+  count            = length(aws_instance.master2-ha)
+  target_id        = "${aws_instance.master2-ha[count.index].id}"
+  port             = 80
+  depends_on       = ["aws_instance.master"]
 }
 
 resource "aws_lb_target_group" "aws_tg_443" {
-  port               = 443
-  protocol           = "TCP"
-  vpc_id             = "${var.vpc_id}"
-  name               = "${var.resource_name}-tg-443"
+  port     = 443
+  protocol = "TCP"
+  vpc_id   = "${var.vpc_id}"
+  name     = "${var.resource_name}-tg-443"
   health_check {
-        protocol            = "HTTP"
-        port                = 80
-        path                = "/ping"
-        interval            = 10
-        timeout             = 6
-        healthy_threshold   = 3
-        unhealthy_threshold = 3
-        matcher             = "200-399"
+    protocol            = "HTTP"
+    port                = 80
+    path                = "/ping"
+    interval            = 10
+    timeout             = 6
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+    matcher             = "200-399"
+  }
+  tags = {
+    yor_trace = "c81ee9de-e3ad-42c7-8a36-5399a7f99eea"
   }
 }
 
 resource "aws_lb_target_group_attachment" "aws_tg_attachment_443" {
-  target_group_arn   = "${aws_lb_target_group.aws_tg_443.arn}"
-  target_id          = "${aws_instance.master.id}"
-  port               = 443
-  depends_on         = ["aws_instance.master"]
+  target_group_arn = "${aws_lb_target_group.aws_tg_443.arn}"
+  target_id        = "${aws_instance.master.id}"
+  port             = 443
+  depends_on       = ["aws_instance.master"]
 }
 
 resource "aws_lb_target_group_attachment" "aws_tg_attachment_443_2" {
-  target_group_arn   = "${aws_lb_target_group.aws_tg_443.arn}"
-  count              = length(aws_instance.master2-ha)
-  target_id          = "${aws_instance.master2-ha[count.index].id}"
-  port               = 443
-  depends_on         = ["aws_instance.master"]
+  target_group_arn = "${aws_lb_target_group.aws_tg_443.arn}"
+  count            = length(aws_instance.master2-ha)
+  target_id        = "${aws_instance.master2-ha[count.index].id}"
+  port             = 443
+  depends_on       = ["aws_instance.master"]
 }
 
 resource "aws_lb_target_group" "aws_tg_6443" {
-  port               = 6443
-  protocol           = "TCP"
-  vpc_id             = "${var.vpc_id}"
-  name               = "${var.resource_name}-tg-6443"
+  port     = 6443
+  protocol = "TCP"
+  vpc_id   = "${var.vpc_id}"
+  name     = "${var.resource_name}-tg-6443"
+  tags = {
+    yor_trace = "18f0c6d0-e764-44fa-9be1-25aaa1c99a03"
+  }
 }
 
 resource "aws_lb_target_group_attachment" "aws_tg_attachment_6443" {
-  target_group_arn   = "${aws_lb_target_group.aws_tg_6443.arn}"
-  target_id          = "${aws_instance.master.id}"
-  port               = 6443
-  depends_on         = ["aws_instance.master"]
+  target_group_arn = "${aws_lb_target_group.aws_tg_6443.arn}"
+  target_id        = "${aws_instance.master.id}"
+  port             = 6443
+  depends_on       = ["aws_instance.master"]
 }
 
 resource "aws_lb_target_group_attachment" "aws_tg_attachment_6443_2" {
-  target_group_arn   = "${aws_lb_target_group.aws_tg_6443.arn}"
-  count              = length(aws_instance.master2-ha)
-  target_id          = "${aws_instance.master2-ha[count.index].id}"
-  port               = 6443
-  depends_on         = ["aws_instance.master"]
+  target_group_arn = "${aws_lb_target_group.aws_tg_6443.arn}"
+  count            = length(aws_instance.master2-ha)
+  target_id        = "${aws_instance.master2-ha[count.index].id}"
+  port             = 6443
+  depends_on       = ["aws_instance.master"]
 }
 
 resource "aws_lb" "aws_nlb" {
   internal           = false
   load_balancer_type = "network"
-  subnets            = ["${var.subnets}"] 
+  subnets            = ["${var.subnets}"]
   name               = "${var.resource_name}-nlb"
+  tags = {
+    yor_trace = "31de05b0-d27d-4786-a2bf-55b780a2fec4"
+  }
 }
 
 resource "aws_lb_listener" "aws_nlb_listener_80" {
-  load_balancer_arn  = "${aws_lb.aws_nlb.arn}"
-  port               = "80"
-  protocol           = "TCP"
+  load_balancer_arn = "${aws_lb.aws_nlb.arn}"
+  port              = "80"
+  protocol          = "TCP"
   default_action {
     type             = "forward"
     target_group_arn = "${aws_lb_target_group.aws_tg_80.arn}"
@@ -251,9 +270,9 @@ resource "aws_lb_listener" "aws_nlb_listener_80" {
 }
 
 resource "aws_lb_listener" "aws_nlb_listener_443" {
-  load_balancer_arn  = "${aws_lb.aws_nlb.arn}"
-  port               = "443"
-  protocol           = "TCP"
+  load_balancer_arn = "${aws_lb.aws_nlb.arn}"
+  port              = "443"
+  protocol          = "TCP"
   default_action {
     type             = "forward"
     target_group_arn = "${aws_lb_target_group.aws_tg_443.arn}"
@@ -261,9 +280,9 @@ resource "aws_lb_listener" "aws_nlb_listener_443" {
 }
 
 resource "aws_lb_listener" "aws_nlb_listener_6443" {
-  load_balancer_arn  = "${aws_lb.aws_nlb.arn}"
-  port               = "6443"
-  protocol           = "TCP"
+  load_balancer_arn = "${aws_lb.aws_nlb.arn}"
+  port              = "6443"
+  protocol          = "TCP"
   default_action {
     type             = "forward"
     target_group_arn = "${aws_lb_target_group.aws_tg_6443.arn}"
@@ -271,15 +290,15 @@ resource "aws_lb_listener" "aws_nlb_listener_6443" {
 }
 
 resource "aws_route53_record" "aws_route53" {
-  zone_id            = "${data.aws_route53_zone.selected.zone_id}"
-  name               = "${var.resource_name}"
-  type               = "CNAME"
-  ttl                = "300"
-  records            = ["${aws_lb.aws_nlb.dns_name}"]
-  depends_on         = ["aws_lb_listener.aws_nlb_listener_6443"]
+  zone_id    = "${data.aws_route53_zone.selected.zone_id}"
+  name       = "${var.resource_name}"
+  type       = "CNAME"
+  ttl        = "300"
+  records    = ["${aws_lb.aws_nlb.dns_name}"]
+  depends_on = ["aws_lb_listener.aws_nlb_listener_6443"]
 }
 
 data "aws_route53_zone" "selected" {
-  name               = "${var.qa_space}"
-  private_zone       = false
+  name         = "${var.qa_space}"
+  private_zone = false
 }

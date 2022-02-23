@@ -5,8 +5,8 @@ terraform {
 }
 
 locals {
-  name                = var.name
-  k3s_cluster_secret  = var.k3s_cluster_secret
+  name               = var.name
+  k3s_cluster_secret = var.k3s_cluster_secret
 }
 
 provider "aws" {
@@ -44,6 +44,9 @@ resource "aws_security_group" "k3s" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = {
+    yor_trace = "42ea43a7-238f-480e-a940-1c503e908910"
   }
 }
 
